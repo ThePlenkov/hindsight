@@ -419,10 +419,10 @@ class TestReflectAgentMocked:
         assert result.iterations == 3
 
     @pytest.mark.asyncio
-    async def test_wall_clock_timeout(self, mock_llm, mock_functions):
+    async def test_wall_clock_timeout(self, mock_llm: MagicMock, mock_functions: dict[str, AsyncMock]) -> None:
         """Test that asyncio.wait_for can enforce a wall-clock timeout on run_reflect_agent."""
 
-        async def slow_llm_call(*args, **kwargs):
+        async def slow_llm_call(*args: object, **kwargs: object) -> LLMToolCallResult:
             await asyncio.sleep(10)  # Simulate a slow LLM call
             return LLMToolCallResult(
                 tool_calls=[LLMToolCall(id="1", name="recall", arguments={"query": "test"})],

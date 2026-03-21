@@ -5344,8 +5344,8 @@ class MemoryEngine(MemoryEngineInterface):
             except asyncio.TimeoutError:
                 total_time = time.time() - reflect_start
                 logger.error(
-                    f"[REFLECT {reflect_id}] Wall-clock timeout after {total_time:.1f}s "
-                    f"(limit: {wall_timeout}s) for query: {query[:50]}..."
+                    "[REFLECT %s] Wall-clock timeout after %.1fs (limit: %ss) for query: %.50s...",
+                    reflect_id, total_time, wall_timeout, query,
                 )
                 raise TimeoutError(
                     f"Reflect operation timed out after {wall_timeout} seconds. "
@@ -5354,8 +5354,9 @@ class MemoryEngine(MemoryEngineInterface):
 
             total_time = time.time() - reflect_start
             logger.info(
-                f"[REFLECT {reflect_id}] Complete: {len(agent_result.text)} chars, "
-                f"{agent_result.iterations} iterations, {agent_result.tools_called} tool calls | {total_time:.3f}s"
+                "[REFLECT %s] Complete: %d chars, %d iterations, %d tool calls | %.3fs",
+                reflect_id, len(agent_result.text), agent_result.iterations,
+                agent_result.tools_called, total_time,
             )
 
             # Convert agent tool trace to ToolCallTrace objects

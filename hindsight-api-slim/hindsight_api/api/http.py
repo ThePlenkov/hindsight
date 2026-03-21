@@ -2518,6 +2518,7 @@ def _register_routes(app: FastAPI):
         "5. Returns plain text answer and the facts used",
         operation_id="reflect",
         tags=["Memory"],
+        responses={504: {"description": "Reflect operation timed out"}},
     )
     async def api_reflect(
         bank_id: str, request: ReflectRequest, request_context: RequestContext = Depends(get_request_context)
@@ -2621,8 +2622,8 @@ def _register_routes(app: FastAPI):
             raise HTTPException(status_code=e.status_code, detail=e.reason)
         except (AuthenticationError, HTTPException):
             raise
-        except (asyncio.TimeoutError, TimeoutError) as e:
-            logger.error(f"Timeout in /v1/default/banks/{bank_id}/reflect: {e}")
+        except TimeoutError as e:
+            logger.error("Timeout in /v1/default/banks/%s/reflect: %s", bank_id, e)
             raise HTTPException(
                 status_code=504,
                 detail=str(e) or "Reflect operation timed out. Consider reducing the budget or simplifying the query.",
