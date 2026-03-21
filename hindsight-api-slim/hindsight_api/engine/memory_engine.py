@@ -5212,6 +5212,7 @@ class MemoryEngine(MemoryEngineInterface):
         effective_budget = budget or Budget.LOW
         max_iterations = max(1, int(base_max_iterations * budget_multipliers.get(effective_budget, 1.0)))
         max_context_tokens = config.reflect_max_context_tokens
+        wall_timeout = config.reflect_wall_timeout
 
         # Run agentic loop - acquire connections only when needed for DB operations
         # (not held during LLM calls which can be slow)
@@ -5316,26 +5317,40 @@ class MemoryEngine(MemoryEngineInterface):
             span_context = None
 
         try:
-            agent_result = await run_reflect_agent(
-                llm_config=self._reflect_llm_config.with_config(resolved_reflect_config),
-                bank_id=bank_id,
-                query=query,
-                bank_profile=profile,
-                search_mental_models_fn=search_mental_models_fn,
-                search_observations_fn=search_observations_fn,
-                recall_fn=recall_fn,
-                expand_fn=expand_fn,
-                context=context,
-                max_iterations=max_iterations,
-                max_tokens=max_tokens,
-                response_schema=response_schema,
-                directives=directives,
-                has_mental_models=has_mental_models,
-                include_observations=include_observations,
-                include_recall=include_recall,
-                budget=effective_budget,
-                max_context_tokens=max_context_tokens,
-            )
+            try:
+                agent_result = await asyncio.wait_for(
+                    run_reflect_agent(
+                        llm_config=self._reflect_llm_config.with_config(resolved_reflect_config),
+                        bank_id=bank_id,
+                        query=query,
+                        bank_profile=profile,
+                        search_mental_models_fn=search_mental_models_fn,
+                        search_observations_fn=search_observations_fn,
+                        recall_fn=recall_fn,
+                        expand_fn=expand_fn,
+                        context=context,
+                        max_iterations=max_iterations,
+                        max_tokens=max_tokens,
+                        response_schema=response_schema,
+                        directives=directives,
+                        has_mental_models=has_mental_models,
+                        include_observations=include_observations,
+                        include_recall=include_recall,
+                        budget=effective_budget,
+                        max_context_tokens=max_context_tokens,
+                    ),
+                    timeout=wall_timeout,
+                )
+            except asyncio.TimeoutError:
+                total_time = time.time() - reflect_start
+                logger.error(
+                    f"[REFLECT {reflect_id}] Wall-clock timeout after {total_time:.1f}s "
+                    f"(limit: {wall_timeout}s) for query: {query[:50]}..."
+                )
+                raise TimeoutError(
+                    f"Reflect operation timed out after {wall_timeout} seconds. "
+                    f"Consider reducing the budget or simplifying the query."
+                )
 
             total_time = time.time() - reflect_start
             logger.info(

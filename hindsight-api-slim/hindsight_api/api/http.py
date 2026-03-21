@@ -2621,6 +2621,12 @@ def _register_routes(app: FastAPI):
             raise HTTPException(status_code=e.status_code, detail=e.reason)
         except (AuthenticationError, HTTPException):
             raise
+        except (asyncio.TimeoutError, TimeoutError) as e:
+            logger.error(f"Timeout in /v1/default/banks/{bank_id}/reflect: {e}")
+            raise HTTPException(
+                status_code=504,
+                detail=str(e) or "Reflect operation timed out. Consider reducing the budget or simplifying the query.",
+            )
         except Exception as e:
             import traceback
 
